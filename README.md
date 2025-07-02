@@ -1,4 +1,4 @@
-Airtel Support Agent - Multi-Agent System with ADK
+# Airtel Support Agent - Multi-Agent System with ADK
 This project demonstrates a multi-agent customer support system for a telecom company like Airtel, built using the Google Agent Development Kit (ADK). The agent is designed to understand user queries, consult a knowledge base, and execute technical tasks like running SQL queries against a PostgreSQL database to solve customer issues.
 
 ✨ Features
@@ -15,12 +15,14 @@ Follow these steps to get the project running on your local machine.
 
 1. Prerequisites
 Make sure you have the following installed on your system:
-
+```bash
 Python (version 3.9 or higher)
 
 PostgreSQL (version 12 or higher)
 
+
 Google ADK CLI: If you haven't already, install it using pip install google-adk.
+```
 
 2. Project Setup
 a. Clone the Repository
