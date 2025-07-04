@@ -78,6 +78,12 @@ def setup_database():
         ('SR_POSTPAID_98765', 'cor_postpaid_bill_789', 'Pending with Billing System', '2025-06-27T12:00:00Z', 'BILLING', 'AIRTEL.POSTPAID.BILLING');
         """,
 
+        # SOP #5: Broadband Order Stuck due to Incorrect Sub-Order Flag
+"""
+INSERT INTO task (order_id, corelation_id, status, one_airtel_suborder, task_type, organisation_process_path) VALUES
+('XBB_STUCK_999', 'cor_stuck_sub_456', 'Pending', true, 'INSTALL', 'AIRTEL.TELEMEDIA.INSTALLATION___FAULT_REPAIR');
+"""
+
         # Older SOP Scenario: FFC RC Issue
         """
         INSERT INTO task (order_id, status, task_type, organisation_process_path, common_details) VALUES
