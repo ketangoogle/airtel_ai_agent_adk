@@ -7,8 +7,6 @@ import psycopg2
 from typing import Optional, Dict, Any
 
 MODEL_GEMINI = "gemini-2.0-flash"
-SOP_FAQ_FILE_PATH = "Airtel_Support_SOP_FAQ.pdf" 
-
 def run_sql(query: str) -> dict:
     """
     Connects to the PostgreSQL database, executes a given SQL query, and returns the result.
@@ -116,3 +114,4 @@ execution_agent = LlmAgent(
     """,
     tools=[sql_tool, api_call_tool]
 )
+
