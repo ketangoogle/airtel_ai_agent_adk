@@ -1,6 +1,7 @@
 from google.adk.agents import LlmAgent
 from .sub_agents.knowledge_agent.agent import knowledge_agent
 from .sub_agents.execution_agent.agent import execution_agent
+from .sub_agents.ticket_creation.agent import ticket_creation_agent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,7 +18,7 @@ root_agent = LlmAgent(
     name="airtel_support_agent",
     model=MODEL_GEMINI,
     description="A multi-agent system for Airtel customer and technical support.",
-    sub_agents=[knowledge_agent, execution_agent],
+    sub_agents=[knowledge_agent, execution_agent, ticket_creation_agent],
     instruction="""
     You are the main routing agent for Airtel support. Your job is to understand the user's query and orchestrate a solution using your specialist agents.
 
@@ -26,5 +27,6 @@ root_agent = LlmAgent(
     3.  Analyze the result from the `execution_agent`. If the result resolves the issue, present the final answer to the user.
     4.  If the `execution_agent` result indicates a further step is needed (e.g., escalating to a team), provide that recommendation to the user.
     5.  If the `knowledge_agent` cannot find a solution, inform the user and ask for more details.
+    6. If the SOP indicates that a support ticket should be created, **delegate this task to the `ticket_creation_agent`**.
     """,
 )
