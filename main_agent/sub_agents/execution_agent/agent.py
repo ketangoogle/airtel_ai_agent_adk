@@ -4,10 +4,57 @@ from psycopg2 import sql, OperationalError
 import os
 import requests
 import psycopg2 
+from google.cloud.sql.connector import Connector, IPTypes
+import pg8000.dbapi
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
 
 MODEL_GEMINI = "gemini-2.0-flash"
 SOP_FAQ_FILE_PATH = "Airtel_Support_SOP_FAQ.pdf" 
+load_dotenv()
+# Global variable for the Cloud SQL Connector instance to manage its lifecycle
+cloud_sql_connector = None
+
+def get_cloud_sql_connection():
+    """Establishes a connection to the PostgresSQL database vial Cloud Sql Connector. 
+    This internal helper function ensures the connector is initialized only once.\
+    and uses env variables for security.
+
+    Returns:
+        pg8000.dbapi.Connection: An active connection object to the PostgreSQL database.
+    Raises:
+        ValueError: If any required environment variable is not set.
+        Exception: If the connection fails for any reason.
+    """
+    global cloud_sql_connector
+    instance_connection_name = os.environ.get("CLOUD_SQL_CONNECTION_NAME")
+    db_user = os.environ.get("DB_USER")
+    db_password = os.environ.get("DB_PASSWORD")
+    db_name = os.environ.get("DB_NAME")
+
+    if not all([instance_connection_name, db_user, db_password, db_name]):
+        print("ðŸ”´ Error: Missing one or more required environment variables for Cloud SQL.")
+        print("Please set CLOUD_SQL_CONNECTION_NAME, DB_USER, DB_PASSWORD, and DB_NAME.")
+        raise ValueError("Cloud SQL environment variables not set.")
+    try:
+        if cloud_sql_connector is None:
+            ip_type = IPTypes.PUBLIC
+            cloud_sql_connector = Connector(ip_type=ip_type)
+
+        conn = cloud_sql_connector.connect(
+            instance_connection_name,
+            "pg8000",  # Specify the driver the connector should use
+            user=db_user,
+            password=db_password,
+            db=db_name,
+        )
+        return conn
+    except Exception as e:
+        print(f"ðŸ”´ Error: Could not connect to the Cloud SQL database.")
+        print(f"Please ensure CLOUD_SQL_CONNECTION_NAME ('{instance_connection_name}') is correct,")
+        print(f"and that your application has permission (Cloud SQL Client role) to connect.")
+        raise e
 
 def run_sql(query: str) -> dict:
     """
@@ -17,13 +64,7 @@ def run_sql(query: str) -> dict:
     conn = None
     try:
         # Establish connection using environment variables for security
-        conn = psycopg2.connect(
-            host=os.environ.get("PG_HOST", "localhost"),
-            dbname=os.environ.get("PG_DBNAME", "airtel_support"),
-            user=os.environ.get("PG_USER", "postgres"),
-            password=os.environ.get("PG_PASSWORD"), # Ensure this is set in your environment
-            port=os.environ.get("PG_PORT", 5432)
-        )
+        conn = get_cloud_sql_connection()
         cursor = conn.cursor()
         cursor.execute(query)
 
@@ -98,6 +139,7 @@ execution_agent = LlmAgent(
     5. **Analyze the result of the SQL query.**
     6. Based on the result and the SOP, decide on the next step. This could be making an API call with the `api_call_tool` or providing an escalation instruction.
     7. Continue executing steps until the SOP is complete or requires escalation.
+    8. If the SOP says create a ticket, use the `ticket_creation_agent` to create a support ticket.
     
     **Your Final Output:**
     - Provide a summary of the actions taken and the final outcome or the required escalation message.
