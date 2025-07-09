@@ -1,25 +1,40 @@
-# setup_database.py
-# This script initializes the database for the Airtel Support Agent using Python.
-# It connects to the PostgreSQL database, creates the 'task' table,
-# and populates it with dummy data for testing SOP scenarios
 import os
-import psycopg2
-from psycopg2 import sql, OperationalError
-
+# Import the Cloud SQL Python Connector and a compatible driver (e.g., pg8000)
+from google.cloud.sql.connector import Connector, IPTypes
+import pg8000.dbapi 
+from psycopg2 import sql, OperationalError 
+from dotenv import load_dotenv
+cloud_sql_connector = None
+load_dotenv() 
 def get_db_connection():
-    """Establishes a connection to the PostgreSQL database using environment variables."""
+    """Establishes a connection to the PostgreSQL database via Cloud SQL Proxy."""
+    global cloud_sql_connector
+    instance_connection_name = os.environ.get("CLOUD_SQL_CONNECTION_NAME")
+    db_user = os.environ.get("DB_USER")
+    db_password = os.environ.get("DB_PASSWORD")
+    db_name = os.environ.get("DB_NAME")
+
+    if not all([instance_connection_name, db_user, db_password, db_name]):
+        print("ðŸ”´ Error: Missing one or more required environment variables for Cloud SQL.")
+        print("Please set CLOUD_SQL_CONNECTION_NAME, DB_USER, DB_PASSWORD, and DB_NAME.")
+        raise ValueError("Cloud SQL environment variables not set.")
+
     try:
-        conn = psycopg2.connect(
-            host=os.environ.get("PG_HOST", "localhost"),
-            dbname=os.environ.get("PG_DBNAME", "airtel_db"),
-            user=os.environ.get("PG_USER", "postgres"),
-            password=os.environ.get("PG_PASSWORD"),
-            port=os.environ.get("PG_PORT", 5432)
+        if cloud_sql_connector is None:
+            ip_type = IPTypes.PUBLIC # Or IPTypes.PRIVATE
+            cloud_sql_connector = Connector(ip_type=ip_type)
+        conn = cloud_sql_connector.connect(
+            instance_connection_name,
+            "pg8000", 
+            user=db_user,
+            password=db_password,
+            db=db_name,
         )
         return conn
-    except OperationalError as e:
-        print(f"🔴 Error: Could not connect to the database.")
-        print("Please ensure that PostgreSQL is running and that your environment variables (PG_HOST, PG_DBNAME, PG_USER, PG_PASSWORD, PG_PORT) are set correctly.")
+    except Exception as e:
+        print(f"ðŸ”´ Error: Could not connect to the Cloud SQL database.")
+        print(f"Please ensure CLOUD_SQL_CONNECTION_NAME ('{instance_connection_name}') is correct,")
+        print(f"and that your application has permission (Cloud SQL Client role) to connect.")
         raise e
 
 def setup_database():
@@ -27,7 +42,6 @@ def setup_database():
     Executes the full database setup: drops the existing table,
     creates a new one, and inserts all dummy data.
     """
-    # SQL commands are stored in a list for sequential execution.
     commands = [
         # Drop the table if it exists to ensure a clean slate.
         "DROP TABLE IF EXISTS task;",
@@ -75,14 +89,14 @@ def setup_database():
         # SOP #3: Postpaid Bill Not Generated
         """
         INSERT INTO task (order_id, corelation_id, status, created_date, task_type, organisation_process_path) VALUES
-        ('SR_POSTPAID_98765', 'cor_postpaid_bill_789', 'Pending with Billing System', '2025-06-27T12:00:00Z', 'BILLING', 'AIRTEL.POSTPAID.BILLING');
+        ('SR_POSTPAID_98765', 'cor_postpaid_bill_789', 'Pending with Billing System', '2025-06-27 12:00:00+00', 'BILLING', 'AIRTEL.POSTPAID.BILLING');
         """,
 
         # SOP #5: Broadband Order Stuck due to Incorrect Sub-Order Flag
-"""
-INSERT INTO task (order_id, corelation_id, status, one_airtel_suborder, task_type, organisation_process_path) VALUES
-('XBB_STUCK_999', 'cor_stuck_sub_456', 'Pending', true, 'INSTALL', 'AIRTEL.TELEMEDIA.INSTALLATION___FAULT_REPAIR');
-"""
+        """
+        INSERT INTO task (order_id, corelation_id, status, one_airtel_suborder, task_type, organisation_process_path) VALUES
+        ('XBB_STUCK_999', 'cor_stuck_sub_456', 'Pending', true, 'INSTALL', 'AIRTEL.TELEMEDIA.INSTALLATION___FAULT_REPAIR');
+        """,
 
         # Older SOP Scenario: FFC RC Issue
         """
@@ -117,7 +131,7 @@ INSERT INTO task (order_id, corelation_id, status, one_airtel_suborder, task_typ
         # Older SOP Scenario: Unable to mark onsite
         """
         INSERT INTO task (order_id, status, organisation_process_path, pending_with_details, created_date, task_type) VALUES
-        ('ONSITE_ISSUE_101', 'Reached Onsite', 'AIRTEL.TELEMEDIA.INSTALLATION___FAULT_REPAIR', '9860434407', '2025-02-15T11:00:00Z', 'Fault Repair');
+        ('ONSITE_ISSUE_101', 'Reached Onsite', 'AIRTEL.TELEMEDIA.INSTALLATION___FAULT_REPAIR', '9860434407', '2025-02-15 11:00:00+00', 'Fault Repair');
         """
     ]
 
@@ -125,30 +139,49 @@ INSERT INTO task (order_id, corelation_id, status, one_airtel_suborder, task_typ
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        print("✅ Database connection successful. Setting up tables...")
+        print("âœ… Database connection successful. Setting up tables...")
 
         # Execute each command
         for command in commands:
+            print(f"Executing: {command.strip().splitlines()[0]}...") # Print first line of command
             cur.execute(command)
 
         # Commit the changes
         conn.commit()
         cur.close()
-        print("✅ Database initialization complete. The 'task' table has been created and populated.")
+        print("âœ… Database initialization complete. The 'task' table has been created and populated.")
 
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(f"🔴 Error during database setup: {error}")
+    except (Exception, pg8000.dbapi.Error) as error: # Catch pg8000's specific error type
+        print(f"ðŸ”´ Error during database setup: {error}")
         if conn is not None:
             conn.rollback() # Roll back the transaction on error
     finally:
         if conn is not None:
             conn.close()
             print("Connection closed.")
+        # Ensure the global connector is closed when the script finishes
+        global cloud_sql_connector
+        if cloud_sql_connector:
+            cloud_sql_connector.close()
+            print("Cloud SQL Connector resources released.")
+
 
 if __name__ == '__main__':
     # This block runs when the script is executed directly from the command line.
     # To run this script:
     # 1. Make sure your virtual environment is activated.
-    # 2. Ensure your PostgreSQL environment variables are set.
+    # 2. Set the following environment variables BEFORE running the script:
+    #    - CLOUD_SQL_CONNECTION_NAME (e.g., my-gcp-project:asia-south1:my-airtel-pg-instance)
+    #    - DB_USER (your PostgreSQL username)
+    #    - DB_PASSWORD (your PostgreSQL password)
+    #    - DB_NAME (your PostgreSQL database name, e.g., airtel_db)
     # 3. Run 'python setup_database.py' in your terminal.
+
+    # Example of how to set environment variables in bash (for testing):
+    # export CLOUD_SQL_CONNECTION_NAME="your-project-id:your-region:your-instance-name"
+    # export DB_USER="your_db_user"
+    # export DB_PASSWORD="your_db_password"
+    # export DB_NAME="airtel_db"
+    # python setup_database.py
+
     setup_database()
