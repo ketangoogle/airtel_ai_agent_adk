@@ -1,6 +1,5 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
-from psycopg2 import sql, OperationalError
 import os
 import requests
 import psycopg2 
@@ -8,25 +7,16 @@ from google.cloud.sql.connector import Connector, IPTypes
 import pg8000.dbapi
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
-
+import datetime # CORRECTED IMPORT
 
 MODEL_GEMINI = "gemini-2.0-flash"
-SOP_FAQ_FILE_PATH = "Airtel_Support_SOP_FAQ.pdf" 
 load_dotenv()
-# Global variable for the Cloud SQL Connector instance to manage its lifecycle
+
+# Global variable for the Cloud SQL Connector instance
 cloud_sql_connector = None
 
 def get_cloud_sql_connection():
-    """Establishes a connection to the PostgresSQL database vial Cloud Sql Connector. 
-    This internal helper function ensures the connector is initialized only once.\
-    and uses env variables for security.
-
-    Returns:
-        pg8000.dbapi.Connection: An active connection object to the PostgreSQL database.
-    Raises:
-        ValueError: If any required environment variable is not set.
-        Exception: If the connection fails for any reason.
-    """
+    """Establishes a connection to the PostgresSQL database via Cloud Sql Connector."""
     global cloud_sql_connector
     instance_connection_name = os.environ.get("CLOUD_SQL_CONNECTION_NAME")
     db_user = os.environ.get("DB_USER")
@@ -34,66 +24,57 @@ def get_cloud_sql_connection():
     db_name = os.environ.get("DB_NAME")
 
     if not all([instance_connection_name, db_user, db_password, db_name]):
-        print("ðŸ”´ Error: Missing one or more required environment variables for Cloud SQL.")
-        print("Please set CLOUD_SQL_CONNECTION_NAME, DB_USER, DB_PASSWORD, and DB_NAME.")
         raise ValueError("Cloud SQL environment variables not set.")
+    
     try:
         if cloud_sql_connector is None:
             ip_type = IPTypes.PUBLIC
             cloud_sql_connector = Connector(ip_type=ip_type)
-
         conn = cloud_sql_connector.connect(
-            instance_connection_name,
-            "pg8000",  # Specify the driver the connector should use
-            user=db_user,
-            password=db_password,
-            db=db_name,
+            instance_connection_name, "pg8000", user=db_user, password=db_password, db=db_name
         )
         return conn
     except Exception as e:
-        print(f"ðŸ”´ Error: Could not connect to the Cloud SQL database.")
-        print(f"Please ensure CLOUD_SQL_CONNECTION_NAME ('{instance_connection_name}') is correct,")
-        print(f"and that your application has permission (Cloud SQL Client role) to connect.")
         raise e
 
 def run_sql(query: str) -> dict:
     """
-    Connects to the PostgreSQL database, executes a given SQL query, and returns the result.
-    Database connection details are sourced from environment variables.
+    Connects to the PostgreSQL database, executes a query, and returns a JSON-serializable result.
+    It now handles datetime objects by converting them to ISO 8601 strings.
     """
     conn = None
     try:
-        # Establish connection using environment variables for security
         conn = get_cloud_sql_connection()
         cursor = conn.cursor()
         cursor.execute(query)
 
-        # Check if the query was a SELECT to fetch results
         if cursor.description:
-            # Fetch all rows and column names
             colnames = [desc[0] for desc in cursor.description]
             records = cursor.fetchall()
-            result = [dict(zip(colnames, record)) for record in records]
+            
+            processed_records = []
+            for record in records:
+                row_dict = {}
+                for i, col in enumerate(colnames):
+                    value = record[i]
+                    # CORRECTED TYPE CHECK
+                    if isinstance(value, datetime.datetime): 
+                        row_dict[col] = value.isoformat() 
+                    else:
+                        row_dict[col] = value
+                processed_records.append(row_dict)
+            result = processed_records
         else:
-            # For non-SELECT queries (INSERT, UPDATE, DELETE)
             result = {"status": "success", "rows_affected": cursor.rowcount}
 
         conn.commit()
         cursor.close()
         return {"result": result}
-    except (OperationalError, psycopg2.Error) as e:
-        # Handle database connection or query errors
+    except (Exception, psycopg2.Error) as e:
         return {"error": f"Database error: {e}"}
     finally:
         if conn is not None:
             conn.close()
-
-# --- Core Agent Functions ---
-
-
-sql_tool = FunctionTool(
-    func=run_sql
-)
 
 def make_api_call(
     method: str,
@@ -101,17 +82,10 @@ def make_api_call(
     headers: Optional[Dict[str, str]] = None,
     params: Optional[Dict[str, Any]] = None,
     data: Optional[Dict[str, Any]] = None) -> dict:
-    """
-    Makes an HTTP request to a specified URL.
-    """
+    """Makes an HTTP request to a specified URL."""
     try:
         response = requests.request(
-            method,
-            url,
-            headers=headers,
-            params=params,
-            json=data,
-            timeout=10
+            method, url, headers=headers, params=params, json=data, timeout=10
         )
         response.raise_for_status()
         return response.json()
@@ -119,12 +93,10 @@ def make_api_call(
         return {"error": f"API call failed: {e}"}
 
 # --- Tool Definitions ---
-# CORRECTED: Removed the 'description' keyword argument.
+sql_tool = FunctionTool(func=run_sql)
+api_call_tool = FunctionTool(func=make_api_call)
 
-
-api_call_tool = FunctionTool(
-    func=make_api_call
-)
+# --- Agent Definition ---
 execution_agent = LlmAgent(
     name="execution_agent",
     model=MODEL_GEMINI,
@@ -143,18 +115,6 @@ execution_agent = LlmAgent(
     
     **Your Final Output:**
     - Provide a summary of the actions taken and the final outcome or the required escalation message.
-    
-    **Database Context:**
-    You will be working with a primary table named `task`. Here is its schema:
-    - `order_id` (VARCHAR): The unique ID of the order.
-    - `corelation_id` (VARCHAR): A correlation ID for tracking.
-    - `status` (VARCHAR): The current state of the task (e.g., 'Feasibility Check', 'Installation Engineer Assignment', 'Reached Onsite').
-    - `task_type` (VARCHAR): The type of task ('Install', 'Fault Repair').
-    - `organisation_process_path` (VARCHAR): The business process path (e.g., 'AIRTEL.TELEMEDIA.INSTALLATION___FAULT_REPAIR').
-    - `common_details` (JSONB): Contains nested details. You can query it like `common_details->'commonDetails'->'telemedia'->>'bin' = 'OAOE'`.
-    - `pending_with_details` (VARCHAR): Shows who the task is pending with (e.g., an engineer's mobile number).
-    - `rsu` (VARCHAR): The Residential Service Unit.
-    - `created_date` (TIMESTAMP): The timestamp when the task was created.
     """,
     tools=[sql_tool, api_call_tool]
 )

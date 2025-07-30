@@ -1,6 +1,7 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 import os
+from .bigquery_knowledge_base import search_knowledge_base
 
 
 # --- Database Functionality (Previously in db_operations.py) ---
@@ -8,25 +9,25 @@ SOP_FAQ_FILE_PATH = "Airtel_Support_SOP_FAQ.pdf"
 MODEL_GEMINI = "gemini-2.0-flash"
 
 
-def read_knowledge_base(file_path: str) -> str:
-    """
-    Reads the content of the SOP/FAQ document.
-    """
-    if not os.path.exists(file_path):
-        return f"Error: Knowledge base file not found at '{file_path}'"
-    return f"Successfully accessed the knowledge base file at '{file_path}'. The agent should now use its internal knowledge to answer based on the SOPs and FAQs within."
+# def read_knowledge_base(file_path: str) -> str:
+#     """
+#     Reads the content of the SOP/FAQ document.
+#     """
+#     if not os.path.exists(file_path):
+#         return f"Error: Knowledge base file not found at '{file_path}'"
+#     return f"Successfully accessed the knowledge base file at '{file_path}'. The agent should now use its internal knowledge to answer based on the SOPs and FAQs within."
 
 
-def get_knowledge_base_content():
-    """
-    Helper function to get the content of the knowledge base.
-    This function will be wrapped by FunctionTool to give it a proper name.
-    """
-    return {"content": read_knowledge_base(SOP_FAQ_FILE_PATH)}
+# def get_knowledge_base_content():
+#     """
+#     Helper function to get the content of the knowledge base.
+#     This function will be wrapped by FunctionTool to give it a proper name.
+#     """
+#     return {"content": read_knowledge_base(SOP_FAQ_FILE_PATH)}
 
 
 knowledge_tool = FunctionTool(
-    func=get_knowledge_base_content # Now using a named function
+    func= search_knowledge_base # Now using a named function
 )
 
 knowledge_agent = LlmAgent(

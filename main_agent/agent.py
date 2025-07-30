@@ -14,7 +14,7 @@ SOP_FAQ_FILE_PATH = "Airtel_Support_SOP_FAQ.pdf" # Make sure this PDF file is in
 # --- Agent Definitions ---
 
 
-root_agent = LlmAgent(
+agent = LlmAgent(
     name="airtel_support_agent",
     model=MODEL_GEMINI,
     description="A multi-agent system for Airtel customer and technical support.",
