@@ -4,15 +4,13 @@ import os
 import requests
 import psycopg2 
 from google.cloud.sql.connector import Connector, IPTypes
-import pg8000.dbapi
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import datetime # CORRECTED IMPORT
 
-MODEL_GEMINI = "gemini-2.0-flash"
 load_dotenv()
+MODEL_GEMINI = "gemini-2.0-flash"
 
-# Global variable for the Cloud SQL Connector instance
 cloud_sql_connector = None
 
 def get_cloud_sql_connection():
@@ -23,8 +21,15 @@ def get_cloud_sql_connection():
     db_password = os.environ.get("DB_PASSWORD")
     db_name = os.environ.get("DB_NAME")
 
-    if not all([instance_connection_name, db_user, db_password, db_name]):
-        raise ValueError("Cloud SQL environment variables not set.")
+    # Explicitly check for None and raise a clear error
+    if instance_connection_name is None:
+        raise ValueError("CLOUD_SQL_CONNECTION_NAME environment variable not set.")
+    if db_user is None:
+        raise ValueError("DB_USER environment variable not set.")
+    if db_password is None:
+        raise ValueError("DB_PASSWORD environment variable not set.")
+    if db_name is None:
+        raise ValueError("DB_NAME environment variable not set.")
     
     try:
         if cloud_sql_connector is None:

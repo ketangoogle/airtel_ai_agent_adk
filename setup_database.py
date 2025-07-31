@@ -14,7 +14,8 @@ def get_db_connection():
     db_password = os.environ.get("DB_PASSWORD")
     db_name = os.environ.get("DB_NAME")
 
-    if not all([instance_connection_name, db_user, db_password, db_name]):
+    # Explicitly check for None and raise a clear error
+    if instance_connection_name is None or db_user is None or db_password is None or db_name is None:
         print("ðŸ”´ Error: Missing one or more required environment variables for Cloud SQL.")
         print("Please set CLOUD_SQL_CONNECTION_NAME, DB_USER, DB_PASSWORD, and DB_NAME.")
         raise ValueError("Cloud SQL environment variables not set.")

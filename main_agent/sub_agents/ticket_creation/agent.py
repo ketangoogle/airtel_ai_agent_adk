@@ -1,6 +1,5 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
-import os
 import time
 from typing import Dict, Any
 

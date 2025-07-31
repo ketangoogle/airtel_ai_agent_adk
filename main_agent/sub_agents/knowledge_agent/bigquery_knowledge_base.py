@@ -2,7 +2,6 @@ from google.cloud import bigquery
 import pandas as pd
 from sentence_transformers import SentenceTransformer, util
 import torch
-import os
 
 # --- Configuration ---
 GCP_PROJECT_ID = "ketan-gcp-playground"
@@ -26,6 +25,8 @@ except Exception as e:
 
 def fetch_data_from_bigquery(table_id):
     """Helper function to fetch all data from a BigQuery table."""
+    if not client:
+        return pd.DataFrame()  # Return empty dataframe if client is not initialized
     try:
         query = f"SELECT * FROM `{table_id}`"
         df = client.query(query).to_dataframe()
@@ -52,7 +53,7 @@ def search_knowledge_base(user_query: str) -> dict:
         query_embedding = model.encode(user_query, convert_to_tensor=True)
         corpus_embeddings = model.encode(corpus, convert_to_tensor=True)
         cos_scores = util.cos_sim(query_embedding, corpus_embeddings)[0]
-        best_match_idx = torch.argmax(cos_scores).item()
+        best_match_idx = int(torch.argmax(cos_scores).item())
 
         if cos_scores[best_match_idx] > 0.65: # Confidence threshold
             return {"source": "FAQ", "result": faq_df.iloc[best_match_idx].to_dict()}
@@ -63,7 +64,7 @@ def search_knowledge_base(user_query: str) -> dict:
         query_embedding = model.encode(user_query, convert_to_tensor=True)
         corpus_embeddings = model.encode(corpus, convert_to_tensor=True)
         cos_scores = util.cos_sim(query_embedding, corpus_embeddings)[0]
-        best_match_idx = torch.argmax(cos_scores).item()
+        best_match_idx = int(torch.argmax(cos_scores).item())
 
         if cos_scores[best_match_idx] > 0.65: # Confidence threshold
             return {"source": "SOP", "result": sop_df.iloc[best_match_idx].to_dict()}
