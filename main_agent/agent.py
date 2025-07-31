@@ -2,19 +2,11 @@ from google.adk.agents import LlmAgent
 from .sub_agents.knowledge_agent.agent import knowledge_agent
 from .sub_agents.execution_agent.agent import execution_agent
 from .sub_agents.ticket_creation.agent import ticket_creation_agent
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Use a valid and available Gemini model name
-MODEL_GEMINI = "gemini-2.0-flash"
-SOP_FAQ_FILE_PATH = "Airtel_Support_SOP_FAQ.pdf" # Make sure this PDF file is in the same directory
+MODEL_GEMINI = "gemini-2.5-flash"
 
-
-# --- Agent Definitions ---
-
-
-agent = LlmAgent(
+root_agent = LlmAgent(
     name="airtel_support_agent",
     model=MODEL_GEMINI,
     description="A multi-agent system for Airtel customer and technical support.",
