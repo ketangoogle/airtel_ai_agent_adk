@@ -4,7 +4,7 @@ from .sub_agents.execution_agent.agent import execution_agent
 from .sub_agents.ticket_creation.agent import ticket_creation_agent
 
 # Use a valid and available Gemini model name
-MODEL_GEMINI = "gemini-2.5-flash"
+MODEL_GEMINI = "gemini-2.0-flash"
 
 root_agent = LlmAgent(
     name="airtel_support_agent",

@@ -4,7 +4,7 @@ from app.services.cloud_connection import get_cloud_sql_connection
 from app.tools.run_sql_tool import run_sql
 from app.tools.api_call_tool import make_api_call
 
-MODEL_GEMINI = "gemini-2.5-flash"
+MODEL_GEMINI = "gemini-2.0-flash"
 sql_tool = FunctionTool(func=run_sql)
 api_call_tool = FunctionTool(func=make_api_call)
 

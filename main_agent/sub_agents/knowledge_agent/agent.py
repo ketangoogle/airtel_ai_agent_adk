@@ -3,7 +3,7 @@ from google.adk.tools import FunctionTool
 from app.tools.knowledge_base_tool import search_knowledge_base
 
 
-MODEL_GEMINI = "gemini-2.5-flash"
+MODEL_GEMINI = "gemini-2.0-flash"
 
 knowledge_tool = FunctionTool(
     func= search_knowledge_base 

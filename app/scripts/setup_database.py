@@ -1,10 +1,6 @@
-import sys
-import os
 import pg8000.dbapi
-from app.services.cloud_connection import {
-    get_cloud_sql_connection,
-    close_connector
-}
+from app.services.cloud_connection import get_cloud_sql_connection, close_connector
+
 
 def setup_database():
     """
@@ -75,7 +71,7 @@ def setup_database():
 
     conn = None
     try:
-        conn = get_db_connection()
+        conn = get_cloud_sql_connection()
         cur = conn.cursor()
         print("✅ Database connection successful. Setting up tables...")
 
