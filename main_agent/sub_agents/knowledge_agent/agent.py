@@ -2,7 +2,6 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from app.tools.knowledge_base_tool import search_knowledge_base
 
-
 MODEL_GEMINI = "gemini-2.0-flash"
 
 knowledge_tool = FunctionTool(

@@ -1,5 +1,6 @@
 streamlit>=1.28.0
 cloud-sql-python-connector==1.18.3
+# Environment Variables Management
 python-dotenv>=1.0.0
 google-generativeai>=0.3.0
 google-adk==1.8.0
